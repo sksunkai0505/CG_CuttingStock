@@ -30,10 +30,10 @@ n_paths = len(paths)
 
 # Define constraints
 demand_constraints = {}
-for i in range(0,len(demand)):
+for i in range(0, len(demand)):
     thisLHS = LinExpr()
     for j in range(0,len(paths)):
-        if paths[i][j] > 0:
+        if paths[j][i] > 0:
             thisLHS += paths[j][i] * x[j]
     demand_constraints[i] = master.addConstr(lhs=thisLHS, sense=GRB.GREATER_EQUAL, rhs=demand[i],
                                              name='demand_Length_%i'%(length[i]))
@@ -109,12 +109,74 @@ while exit_condition is False and cont < 100:
 
     cont += 1
 
+    # # first approach using list comprehension (1-liner!)
+    # rolls1 = []
+    # # cycling over all paths that were generated
+    # for k in x:
+    #     # checking how many replicas of such path are
+    #     for j in range(int(x[k].X)):
+    #         # Here we are telling Python to do the following:
+    #         # - add element length[i] ---> the length of the i-th piece (ranging from 2 to 8) : length[i] for i in range(len(demand))
+    #         # -
+    #         # -
+    #         rolls1.append(sorted([length[i] for i in range(len(demand)) if paths[k][i] > 0 for j in range(paths[k][i])]))
+    # rolls1.sort()
 
 
 
 
 
+# Setup master problem
+master = Model()
+
+# Define one decision variable per path
+x = {}
+for i in range(0, len(paths)):
+    x[i] = master.addVar(lb=0, ub=30, vtype=GRB.INTEGER, name="x_%s"%(i))
+n_paths = len(paths)
+
+# Define constraints
+demand_constraints = {}
+for i in range(0, len(demand)):
+    thisLHS = LinExpr()
+    for j in range(0,len(paths)):
+        if paths[j][i] > 0:
+            thisLHS += paths[j][i] * x[j]
+    demand_constraints[i] = master.addConstr(lhs=thisLHS, sense=GRB.GREATER_EQUAL, rhs=demand[i],
+                                             name='demand_Length_%i'%(length[i]))
+
+obj = LinExpr()
+
+for i in range(0, len(paths)):
+    obj += x[i]
+
+master.setObjective(obj, GRB.MINIMIZE)
+master.optimize()
+
+solution = []
+
+# Retrieve variable names and values
+for v in knapsack.getVars():
+    solution.append([v.varName, v.x])
 
 
 
+# determining solution in terms of rolls. each roll contains the items that are
+# obtained from that roll. E.g., a roll [2,2,5] implies that two items of
+# length 2 and one item of length 5 are obtained from it. Remember that the
+# sumation of the lengths contained in each roll should be <= B (9 in our cae)
 
+# first approach using list comprehension (1-liner!)
+rolls1 = []
+# cycling over all paths that were generated
+for k in x:
+    # checking how many replicas of such path are
+    for j in range(int(x[k].X)):
+        # Here we are telling Python to do the following:
+        # - add element length[i] ---> the length of the i-th piece (ranging from 2 to 8) : length[i] for i in range(len(demand))
+        # -
+        # -
+        rolls1.append(sorted([length[i] for i in range(len(demand)) if paths[k][i] > 0 for j in range(paths[k][i])]))
+rolls1.sort()
+
+print(rolls1)
